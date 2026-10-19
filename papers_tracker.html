@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Papers Científicos</title>
+  <!-- PWA Meta Tags para iPhone y Windows -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Papers Tracker">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              black: '#0F172A',     /* Fondo/Oscuro Principal */
+              navy: '#1E293B',      /* Azul Oscuro Tarjetas */
+              orange: '#F97316',    /* Naranja Acento */
+              orangeDark: '#EA580C',
+              white: '#FFFFFF',
+              grayText: '#94A3B8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-brand-black text-brand-white font-sans min-h-screen pb-12">
+
+  <!-- Header / Navbar -->
+  <header class="bg-brand-navy border-b border-slate-800 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="bg-brand-orange p-2 rounded-lg text-white">
+          <i data-lucide="book-open" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">Tracker de Papers</h1>
+          <p class="text-xs text-brand-grayText">Sincronizado multi-dispositivo</p>
+        </div>
+      </div>
+      <button onclick="openModal()" class="bg-brand-orange hover:bg-brand-orangeDark text-white font-semibold px-4 py-2 rounded-xl flex items-center space-x-2 transition-all shadow-lg shadow-orange-500/20">
+        <i data-lucide="plus-circle" class="w-5 h-5"></i>
+        <span class="hidden sm:inline">Nuevo Paper</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- KPI Summary Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-brand-navy p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-brand-grayText">Total Projects</p>
+          <p id="kpi-total" class="text-2xl font-bold mt-1">0</p>
+        </div>
+        <div class="bg-slate-800 p-3 rounded-xl text-brand-orange">
+          <i data-lucide="file-text" class="w-5 h-5"></i>
+        </div>
+      </div>
+      <div class="bg-brand-navy p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-brand-grayText">En Redacción</p>
+          <p id="kpi-redaccion" class="text-2xl font-bold mt-1 text-amber-400">0</p>
+        </div>
+        <div class="bg-slate-800 p-3 rounded-xl text-amber-400">
+          <i data-lucide="edit-3" class="w-5 h-5"></i>
+        </div>
+      </div>
+      <div class="bg-brand-navy p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-brand-grayText">En Revisión</p>
+          <p id="kpi-revision" class="text-2xl font-bold mt-1 text-sky-400">0</p>
+        </div>
+        <div class="bg-slate-800 p-3 rounded-xl text-sky-400">
+          <i data-lucide="clock" class="w-5 h-5"></i>
+        </div>
+      </div>
+      <div class="bg-brand-navy p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-brand-grayText">Publicados</p>
+          <p id="kpi-publicados" class="text-2xl font-bold mt-1 text-emerald-400">0</p>
+        </div>
+        <div class="bg-slate-800 p-3 rounded-xl text-emerald-400">
+          <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Papers List -->
+    <div class="bg-brand-navy rounded-2xl border border-slate-800 overflow-hidden">
+      <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+        <h2 class="font-bold text-lg">Manuscritos Activos</h2>
+        <span class="text-xs text-brand-grayText" id="paper-count-badge">0 artículos</span>
+      </div>
+      
+      <div class="divide-y divide-slate-800" id="papers-list">
+        <!-- Render dinámico desde Javascript -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal para Nuevo / Editar Paper -->
+  <div id="paper-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-brand-navy border border-slate-700 rounded-2xl w-full max-w-lg p-6 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-lg" id="modal-title">Añadir Nuevo Paper</h3>
+        <button onclick="closeModal()" class="text-brand-grayText hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="paper-form" onsubmit="savePaper(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-brand-grayText mb-1">Título del Paper</label>
+          <input type="text" id="input-title" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-brand-grayText mb-1">Revista Objetivo</label>
+            <input type="text" id="input-journal" placeholder="Ej. JSCR" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-brand-grayText mb-1">Cuartil</label>
+            <select id="input-quartile" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
+              <option value="Q1">Q1</option>
+              <option value="Q2">Q2</option>
+              <option value="Q3">Q3</option>
+              <option value="Q4">Q4</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-brand-grayText mb-1">Estado</label>
+            <select id="input-status" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
+              <option value="En redacción">En redacción</option>
+              <option value="En revisión interna">En revisión interna</option>
+              <option value="Enviado / Under Review">Enviado / Under Review</option>
+              <option value="Revisión (Major/Minor)">Revisión (Major/Minor)</option>
+              <option value="Aceptado">Aceptado</option>
+              <option value="Publicado">Publicado</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-brand-grayText mb-1">Fecha de Envío</label>
+            <input type="date" id="input-date" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-brand-grayText hover:text-white">Cancelar</button>
+          <button type="submit" class="bg-brand-orange hover:bg-brand-orangeDark text-white px-5 py-2 rounded-xl text-sm font-semibold">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- App Logic -->
+  <script>
+    // Estado inicial / almacenamiento local (se puede conectar a Supabase/Firebase)
+    let papers = JSON.parse(localStorage.getItem('academic_papers')) || [
+      { id: '1', title: 'Allometric Scaling of Handgrip Strength in Older Adults', journal: 'Journals of Gerontology', quartile: 'Q1', status: 'Enviado / Under Review', submissionDate: '2026-09-15' },
+      { id: '2', title: 'Functional Physical Capacity and Cardiovascular Risk Metrics', journal: 'European Journal of Sport Science', quartile: 'Q1', status: 'En redacción', submissionDate: '' }
+    ];
+
+    function saveToStorage() {
+      localStorage.setItem('academic_papers', JSON.stringify(papers));
+      render();
+    }
+
+    function render() {
+      const listEl = document.getElementById('papers-list');
+      listEl.innerHTML = '';
+
+      let stats = { redaccion: 0, revision: 0, publicados: 0 };
+
+      papers.forEach(p => {
+        if (p.status === 'En redacción' || p.status === 'En revisión interna') stats.redaccion++;
+        else if (p.status === 'Enviado / Under Review' || p.status === 'Revisión (Major/Minor)') stats.revision++;
+        else if (p.status === 'Aceptado' || p.status === 'Publicado') stats.publicados++;
+
+        let badgeColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+        if (p.status.includes('Enviado') || p.status.includes('Revisión')) badgeColor = 'bg-sky-500/10 text-sky-400 border-sky-500/20';
+        if (p.status === 'Publicado' || p.status === 'Aceptado') badgeColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+
+        const itemHTML = `
+          <div class="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-slate-800/50 transition-colors">
+            <div class="space-y-1 max-w-xl">
+              <div class="flex items-center space-x-2">
+                <span class="text-xs px-2 py-0.5 rounded border ${badgeColor} font-medium">${p.status}</span>
+                <span class="text-xs bg-slate-800 text-brand-orange px-2 py-0.5 rounded font-bold">${p.quartile}</span>
+              </div>
+              <h3 class="font-bold text-base leading-snug">${p.title}</h3>
+              <p class="text-xs text-brand-grayText flex items-center space-x-2">
+                <span>${p.journal}</span>
+                ${p.submissionDate ? `<span>• Envío: ${p.submissionDate}</span>` : ''}
+              </p>
+            </div>
+            <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+              <select onchange="updateStatus('${p.id}', this.value)" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2 py-1 text-brand-white focus:border-brand-orange">
+                <option value="En redacción" ${p.status==='En redacción'?'selected':''}>En redacción</option>
+                <option value="En revisión interna" ${p.status==='En revisión interna'?'selected':''}>En revisión interna</option>
+                <option value="Enviado / Under Review" ${p.status==='Enviado / Under Review'?'selected':''}>Enviado / Under Review</option>
+                <option value="Revisión (Major/Minor)" ${p.status==='Revisión (Major/Minor)'?'selected':''}>Revisión (Major/Minor)</option>
+                <option value="Aceptado" ${p.status==='Aceptado'?'selected':''}>Aceptado</option>
+                <option value="Publicado" ${p.status==='Publicado'?'selected':''}>Publicado</option>
+              </select>
+              <button onclick="deletePaper('${p.id}')" class="p-1.5 text-slate-500 hover:text-red-400 transition-colors">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        listEl.innerHTML += itemHTML;
+      });
+
+      // Update KPIs
+      document.getElementById('kpi-total').innerText = papers.length;
+      document.getElementById('kpi-redaccion').innerText = stats.redaccion;
+      document.getElementById('kpi-revision').innerText = stats.revision;
+      document.getElementById('kpi-publicados').innerText = stats.publicados;
+      document.getElementById('paper-count-badge').innerText = `${papers.length} artículos`;
+
+      lucide.createIcons();
+    }
+
+    function updateStatus(id, newStatus) {
+      papers = papers.map(p => p.id === id ? { ...p, status: newStatus } : p);
+      saveToStorage();
+    }
+
+    function deletePaper(id) {
+      if (confirm('¿Eliminar este paper del seguimiento?')) {
+        papers = papers.filter(p => p.id !== id);
+        saveToStorage();
+      }
+    }
+
+    function openModal() { document.getElementById('paper-modal').classList.remove('hidden'); }
+    function closeModal() { document.getElementById('paper-modal').classList.add('hidden'); }
+
+    function savePaper(e) {
+      e.preventDefault();
+      const newPaper = {
+        id: Date.now().toString(),
+        title: document.getElementById('input-title').value,
+        journal: document.getElementById('input-journal').value,
+        quartile: document.getElementById('input-quartile').value,
+        status: document.getElementById('input-status').value,
+        submissionDate: document.getElementById('input-date').value
+      };
+      papers.unshift(newPaper);
+      saveToStorage();
+      closeModal();
+      document.getElementById('paper-form').reset();
+    }
+
+    // Inicializar
+    render();
+  </script>
+</body>
+</html>

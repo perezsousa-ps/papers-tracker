@@ -3,12 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestión de Papers Científicos</title>
+  <title>PaperSync — Gestión Científica</title>
+  
+  <!-- Configuración PWA para iPhone / Windows -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Papers Tracker">
+  <meta name="apple-mobile-web-app-title" content="PaperSync">
+  <meta name="application-name" content="PaperSync">
+  
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
   <script>
     tailwind.config = {
       theme: {
@@ -30,102 +39,125 @@
 </head>
 <body class="bg-brand-black text-brand-white font-sans min-h-screen pb-12">
 
-  <!-- Header -->
+  <!-- Banner de Configuración Supabase (Solo visible si faltan claves) -->
+  <div id="config-banner" class="bg-brand-orange/20 border-b border-brand-orange p-4 hidden">
+    <div class="max-w-4xl mx-auto space-y-2">
+      <p class="text-xs font-semibold text-brand-orange">⚠️ Configura las credenciales de Supabase para activar la sincronización</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input type="text" id="cfg-url" placeholder="Project URL (ej. https://xyz.supabase.co)" class="bg-slate-900 border border-slate-700 text-xs px-3 py-2 rounded-lg text-white">
+        <input type="text" id="cfg-key" placeholder="Anon / Public Key" class="bg-slate-900 border border-slate-700 text-xs px-3 py-2 rounded-lg text-white">
+      </div>
+      <button onclick="saveConfig()" class="bg-brand-orange hover:bg-brand-orangeDark text-xs px-4 py-1.5 rounded-lg text-white font-bold transition-all">Conectar Base de Datos</button>
+    </div>
+  </div>
+
+  <!-- Header principal con marca PaperSync -->
   <header class="bg-brand-navy border-b border-slate-800 sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
       <div class="flex items-center space-x-3">
-        <div class="bg-brand-orange p-2 rounded-lg text-white">
-          <i data-lucide="book-open" class="w-6 h-6"></i>
+        <div class="bg-brand-orange p-2.5 rounded-xl text-white shadow-lg shadow-orange-500/20">
+          <i data-lucide="layers" class="w-6 h-6"></i>
         </div>
         <div>
-          <h1 class="text-xl font-bold tracking-tight">Tracker de Papers</h1>
-          <p class="text-xs text-brand-grayText">Investigación y Envejecimiento Saludable</p>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            PaperSync
+            <span class="text-[10px] bg-brand-orange/20 text-brand-orange font-bold px-2 py-0.5 rounded-full border border-brand-orange/30">v1.0</span>
+          </h1>
+          <p class="text-xs text-brand-grayText" id="sync-status">Conectando con la nube...</p>
         </div>
       </div>
-      <button onclick="openModal()" class="bg-brand-orange hover:bg-brand-orangeDark text-white font-semibold px-4 py-2 rounded-xl flex items-center space-x-2 transition-all shadow-lg shadow-orange-500/20">
-        <i data-lucide="plus-circle" class="w-5 h-5"></i>
-        <span class="hidden sm:inline">Nuevo Paper</span>
-      </button>
+      <div class="flex items-center space-x-2">
+        <button onclick="toggleConfig()" title="Ajustes de conexión" class="bg-slate-800 text-slate-400 hover:text-white p-2.5 rounded-xl border border-slate-700 transition-all">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+        </button>
+        <button onclick="openModal()" class="bg-brand-orange hover:bg-brand-orangeDark text-white font-semibold px-4 py-2.5 rounded-xl flex items-center space-x-2 transition-all shadow-lg shadow-orange-500/20">
+          <i data-lucide="plus-circle" class="w-5 h-5"></i>
+          <span class="hidden sm:inline">Nuevo Paper</span>
+        </button>
+      </div>
     </div>
   </header>
 
   <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-    <!-- Tarjetas KPI -->
+    <!-- Tarjetas resumen KPI -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div class="bg-brand-navy p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
         <div>
-          <p class="text-xs text-brand-grayText">Total Papers</p>
-          <p id="kpi-total" class="text-2xl font-bold mt-1">10</p>
+          <p class="text-xs text-brand-grayText font-medium">Total Papers</p>
+          <p id="kpi-total" class="text-2xl font-bold mt-1 text-white">0</p>
         </div>
-        <div class="bg-slate-800 p-3 rounded-xl text-brand-orange"><i data-lucide="file-text" class="w-5 h-5"></i></div>
+        <div class="bg-slate-800/80 p-3 rounded-xl text-brand-orange border border-slate-700/50"><i data-lucide="file-text" class="w-5 h-5"></i></div>
       </div>
       <div class="bg-brand-navy p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
         <div>
-          <p class="text-xs text-brand-grayText">En Redacción</p>
-          <p id="kpi-redaccion" class="text-2xl font-bold mt-1 text-amber-400">3</p>
+          <p class="text-xs text-brand-grayText font-medium">En Redacción</p>
+          <p id="kpi-redaccion" class="text-2xl font-bold mt-1 text-amber-400">0</p>
         </div>
-        <div class="bg-slate-800 p-3 rounded-xl text-amber-400"><i data-lucide="edit-3" class="w-5 h-5"></i></div>
+        <div class="bg-slate-800/80 p-3 rounded-xl text-amber-400 border border-slate-700/50"><i data-lucide="edit-3" class="w-5 h-5"></i></div>
       </div>
       <div class="bg-brand-navy p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
         <div>
-          <p class="text-xs text-brand-grayText">En Revisión</p>
-          <p id="kpi-revision" class="text-2xl font-bold mt-1 text-sky-400">4</p>
+          <p class="text-xs text-brand-grayText font-medium">En Revisión</p>
+          <p id="kpi-revision" class="text-2xl font-bold mt-1 text-sky-400">0</p>
         </div>
-        <div class="bg-slate-800 p-3 rounded-xl text-sky-400"><i data-lucide="clock" class="w-5 h-5"></i></div>
+        <div class="bg-slate-800/80 p-3 rounded-xl text-sky-400 border border-slate-700/50"><i data-lucide="clock" class="w-5 h-5"></i></div>
       </div>
       <div class="bg-brand-navy p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
         <div>
-          <p class="text-xs text-brand-grayText">Publicados</p>
-          <p id="kpi-publicados" class="text-2xl font-bold mt-1 text-emerald-400">3</p>
+          <p class="text-xs text-brand-grayText font-medium">Publicados</p>
+          <p id="kpi-publicados" class="text-2xl font-bold mt-1 text-emerald-400">0</p>
         </div>
-        <div class="bg-slate-800 p-3 rounded-xl text-emerald-400"><i data-lucide="check-circle-2" class="w-5 h-5"></i></div>
+        <div class="bg-slate-800/80 p-3 rounded-xl text-emerald-400 border border-slate-700/50"><i data-lucide="check-circle-2" class="w-5 h-5"></i></div>
       </div>
     </div>
 
-    <!-- Filtros de vista rápida -->
+    <!-- Barra de Filtros rápidos -->
     <div class="flex space-x-2 overflow-x-auto pb-1">
-      <button onclick="setFilter('todos')" id="filter-todos" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-orange text-white">Todos</button>
-      <button onclick="setFilter('revision')" id="filter-revision" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-sky-400 border border-slate-700">🔍 En Revisión</button>
-      <button onclick="setFilter('redaccion')" id="filter-redaccion" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-amber-400 border border-slate-700">✍️ En Redacción</button>
-      <button onclick="setFilter('publicado')" id="filter-publicado" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-emerald-400 border border-slate-700">✅ Publicados</button>
+      <button onclick="setFilter('todos')" id="filter-todos" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-brand-orange text-white shadow-sm transition-all">Todos</button>
+      <button onclick="setFilter('revision')" id="filter-revision" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-sky-400 border border-slate-700 hover:bg-slate-700 transition-all">🔍 En Revisión</button>
+      <button onclick="setFilter('redaccion')" id="filter-redaccion" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-amber-400 border border-slate-700 hover:bg-slate-700 transition-all">✍️ En Redacción</button>
+      <button onclick="setFilter('publicado')" id="filter-publicado" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-emerald-400 border border-slate-700 hover:bg-slate-700 transition-all">✅ Publicados</button>
     </div>
 
     <!-- Lista de Manuscritos -->
-    <div class="bg-brand-navy rounded-2xl border border-slate-800 overflow-hidden">
-      <div class="p-4 border-b border-slate-800 flex justify-between items-center">
-        <h2 class="font-bold text-lg">Manuscritos Activos</h2>
-        <span class="text-xs text-brand-grayText" id="paper-count-badge">10 manuscritos</span>
+    <div class="bg-brand-navy rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+      <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
+        <h2 class="font-bold text-base text-white flex items-center gap-2">
+          <i data-lucide="book-open" class="w-4 h-4 text-brand-orange"></i>
+          Manuscritos Activos
+        </h2>
+        <span class="text-xs text-brand-grayText bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700/50" id="paper-count-badge">Cargando...</span>
       </div>
       <div class="divide-y divide-slate-800" id="papers-list"></div>
     </div>
   </main>
 
-  <!-- Modal para Agregar/Editar -->
-  <div id="paper-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-brand-navy border border-slate-700 rounded-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+  <!-- Modal para Agregar o Editar -->
+  <div id="paper-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-brand-navy border border-slate-700 rounded-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-lg">Añadir / Editar Paper</h3>
-        <button onclick="closeModal()" class="text-brand-grayText hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <h3 class="font-bold text-lg text-white flex items-center gap-2">
+          <i data-lucide="file-plus" class="w-5 h-5 text-brand-orange"></i>
+          Añadir Nuevo Paper
+        </h3>
+        <button onclick="closeModal()" class="text-brand-grayText hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
       <form id="paper-form" onsubmit="savePaper(event)" class="space-y-3">
         <div>
           <label class="block text-xs font-semibold text-brand-grayText mb-1">Título del Paper</label>
-          <input type="text" id="input-title" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
+          <input type="text" id="input-title" required placeholder="Escribe el título del manuscrito..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
         </div>
-        
-        <!-- Nuevos campos de Autores -->
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-brand-grayText mb-1">Autor Principal</label>
-            <input type="text" id="input-author" placeholder="Ej. Dr. Miguel Pérez" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
+            <input type="text" id="input-author" placeholder="Miguel Ángel Pérez-Sousa" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
           </div>
           <div>
             <label class="block text-xs font-semibold text-brand-grayText mb-1">Coautores / Roles</label>
-            <input type="text" id="input-coauthors" placeholder="Ej. C. Gómez, M. Valdés" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
+            <input type="text" id="input-coauthors" placeholder="R. Ramírez-Vélez, A. García" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
           </div>
         </div>
-
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-brand-grayText mb-1">Cohorte / Base de Datos</label>
@@ -157,33 +189,98 @@
           </div>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-brand-grayText mb-1">Enlace a Word / Carpeta / Portal</label>
+          <label class="block text-xs font-semibold text-brand-grayText mb-1">Enlace a Word / Carpeta / Portal Editorial</label>
           <input type="url" id="input-doc-link" placeholder="https://..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange">
         </div>
         <div class="flex justify-end space-x-3 pt-3 border-t border-slate-800">
-          <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-brand-grayText hover:text-white">Cancelar</button>
-          <button type="submit" class="bg-brand-orange hover:bg-brand-orangeDark text-white px-5 py-2 rounded-xl text-sm font-semibold">Guardar Paper</button>
+          <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-brand-grayText hover:text-white transition-colors">Cancelar</button>
+          <button type="submit" class="bg-brand-orange hover:bg-brand-orangeDark text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all">Guardar en PaperSync</button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Lógica de PaperSync y Conexión Supabase -->
   <script>
-    const initialPapers = [
-      { id: '1', title: 'Associations of muscle mass and strength with depressive symptoms among community-dwelling adults: A Cross-Sectional Study of the SABE study in Ecuador(GAM)', db: 'SABE ECUADOR', author: 'Miguel Ángel Pérez-Sousa', coauthors: 'R. Ramírez-Vélez, A. García', status: 'Enviado / Under Review', journal: 'Aging medicine', link: 'https://mc.manuscriptcentral.com/agm2', corr: 'No' },
-      { id: '2', title: 'Low relative STS power in Colombian older adults: cut-off points and associations with frailty and functionality (REGRESION CUANTILES)', db: 'SABE COLOMBIA', author: 'Miguel Ángel Pérez-Sousa', coauthors: 'C. Cano, A. Izquierdo', status: 'Publicado', journal: 'The Journal of Frailty & Aging', link: '', corr: 'No' },
-      { id: '3', title: 'The Synergistic Association of Obesity and Low Handgrip Strength on Cognitive Decline and Dementia', db: 'SABE COLOMBIA', author: 'Miguel Ángel Pérez-Sousa', coauthors: 'L. Rodríguez, F. López', status: 'Publicado', journal: 'Frontiers in Nutrition', link: '', corr: 'No' },
-      { id: '4', title: 'Novel and traditional anthropometric indices for predicting the risk of metabolic syndrome in the Chilean population', db: 'ENSE CHILE', author: 'Miguel Ángel Pérez-Sousa', coauthors: '', status: 'En redacción', journal: 'Por definir', link: '', corr: 'No' },
-      { id: '5', title: 'Absolute and relative handgrip strength as indicators of cognitive impairment: Evidence from the Mexican cognitive aging study', db: 'MEX-COG', author: 'Miguel Ángel Pérez-Sousa', coauthors: 'R. Ramírez-Vélez', status: 'Publicado', journal: 'The Journal of Aging Research & Lifestyle', link: '', corr: 'No' },
-      { id: '6', title: 'Unified Handgrip Strength Cut-Offs (21/30 kg) for Functional Limitation: Cross-National Validation in Latin America', db: 'LATAM', author: 'Miguel Ángel Pérez-Sousa', coauthors: 'Grupo Healthy-Age', status: 'En revisión interna', journal: 'GERIATRIC NURSING', link: '', corr: 'No' },
-      { id: '7', title: 'Allometric Scaling of Handgrip Strength in Older Adults: Normative Values in Latin American Cohorts', db: 'LATAM', author: 'Miguel Ángel Pérez-Sousa', coauthors: 'D. Silva', status: 'En redacción', journal: 'Brazilian Journal of Physical Therapy', link: '', corr: 'No' },
-      { id: '8', title: 'Sex-Specific Associations Between Handgrip Strength and All-Cause Mortality in Older Mexican Adults', db: 'ENASEM MEXICO', author: 'Miguel Ángel Pérez-Sousa', coauthors: 'H. Gutiérrez', status: 'Enviado / Under Review', journal: 'GEROSCIENCE', link: '', corr: 'No' },
-      { id: '9', title: 'Exercise Intensity, Cardiorespiratory Fitness, and Attention Outcomes in Adolescents: A Secondary Analysis of the HEPAFIT Study', db: 'HEPAFIT COLOMBIA', author: 'Miguel Ángel Pérez-Sousa', coauthors: 'J. Castro, M. Morales', status: 'Enviado / Under Review', journal: 'BMC Pediatrics', link: '', corr: 'No' },
-      { id: '10', title: 'Bullying Victimization, Recreational Internet Use, Sleep, and Psychosomatic Symptoms Among Schoolchildren in Bogotá', db: 'HEPAFIT COLOMBIA', author: 'Miguel Ángel Pérez-Sousa', coauthors: 'R. Ramírez-Vélez', status: 'Enviado / Under Review', journal: 'Children and Youth Services Review', link: '', corr: 'Sí' }
-    ];
-
-    let papers = JSON.parse(localStorage.getItem('academic_papers_v4')) || initialPapers;
+    let supabaseClient = null;
+    let papers = [];
     let currentFilter = 'todos';
+
+    function initSupabase() {
+      const url = localStorage.getItem('sb_url');
+      const key = localStorage.getItem('sb_key');
+
+      if (!url || !key) {
+        document.getElementById('config-banner').classList.remove('hidden');
+        document.getElementById('sync-status').innerText = '⚠️ Configura tus claves de Supabase';
+        return;
+      }
+
+      document.getElementById('config-banner').classList.add('hidden');
+      supabaseClient = supabase.createClient(url, key);
+      document.getElementById('sync-status').innerText = '🟢 PaperSync Activo (Sincronizado)';
+      fetchPapers();
+
+      // Sincronización en tiempo real
+      supabaseClient
+        .channel('public:papers')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'papers' }, () => {
+          fetchPapers();
+        })
+        .subscribe();
+    }
+
+    function saveConfig() {
+      const u = document.getElementById('cfg-url').value.trim();
+      const k = document.getElementById('cfg-key').value.trim();
+      if (u && k) {
+        localStorage.setItem('sb_url', u);
+        localStorage.setItem('sb_key', k);
+        initSupabase();
+      }
+    }
+
+    function toggleConfig() {
+      document.getElementById('cfg-url').value = localStorage.getItem('sb_url') || '';
+      document.getElementById('cfg-key').value = localStorage.getItem('sb_key') || '';
+      document.getElementById('config-banner').classList.toggle('hidden');
+    }
+
+    async function fetchPapers() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient.from('papers').select('*').order('created_at', { ascending: false });
+      if (!error && data) {
+        papers = data;
+        render();
+      }
+    }
+
+    async function savePaper(e) {
+      e.preventDefault();
+      const p = {
+        id: 'PAP-' + Date.now().toString().slice(-4),
+        title: document.getElementById('input-title').value,
+        author: document.getElementById('input-author').value || 'Miguel Ángel Pérez-Sousa',
+        coauthors: document.getElementById('input-coauthors').value,
+        database: document.getElementById('input-db').value,
+        journal: document.getElementById('input-journal').value,
+        status: document.getElementById('input-status').value,
+        corr: document.getElementById('input-corr').value,
+        link: document.getElementById('input-doc-link').value
+      };
+
+      if (supabaseClient) {
+        await supabaseClient.from('papers').insert([p]);
+      }
+      closeModal();
+      document.getElementById('paper-form').reset();
+    }
+
+    async function updateStatus(id, newStatus) {
+      if (supabaseClient) {
+        await supabaseClient.from('papers').update({ status: newStatus }).eq('id', id);
+      }
+    }
 
     function render() {
       const listEl = document.getElementById('papers-list');
@@ -209,30 +306,31 @@
         if (p.status === 'Publicado' || p.status === 'Aceptado') badgeColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
 
         listEl.innerHTML += `
-          <div class="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-slate-800/50 transition-colors">
+          <div class="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-slate-800/40 transition-colors">
             <div class="space-y-1.5 max-w-2xl">
               <div class="flex items-center space-x-2 flex-wrap gap-y-1">
-                <span class="text-xs px-2 py-0.5 rounded border ${badgeColor} font-medium">${p.status}</span>
-                <span class="text-xs bg-slate-800 text-brand-orange px-2 py-0.5 rounded font-bold">${p.db}</span>
-                ${p.corr === 'Sí' ? `<span class="text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded">Autor Correspondiente</span>` : ''}
+                <span class="text-xs px-2.5 py-0.5 rounded-md border ${badgeColor} font-medium">${p.status}</span>
+                <span class="text-xs bg-slate-800 text-brand-orange px-2 py-0.5 rounded-md font-bold border border-slate-700">${p.database || 'General'}</span>
+                ${p.corr === 'Sí' ? `<span class="text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-md">Corresponding Author</span>` : ''}
               </div>
-              <h3 class="font-bold text-base leading-snug">${p.title}</h3>
+              <h3 class="font-bold text-base leading-snug text-white">${p.title}</h3>
               <p class="text-xs text-brand-grayText">
-                <span class="text-slate-300 font-semibold">Autor:</span> ${p.author || 'Sin asignar'}
+                <span class="text-slate-300 font-medium">Autor:</span> ${p.author || 'Sin asignar'}
                 ${p.coauthors ? `<span class="text-slate-400"> | Coautores: ${p.coauthors}</span>` : ''}
               </p>
-              <p class="text-xs text-slate-400">
-                <span>Revista: ${p.journal}</span>
+              <p class="text-xs text-slate-400 flex items-center gap-1">
+                <i data-lucide="book" class="w-3 h-3 text-brand-grayText"></i>
+                <span>Revista: ${p.journal || 'Por definir'}</span>
               </p>
             </div>
             <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
               ${p.link ? `
-                <a href="${p.link}" target="_blank" class="bg-brand-orange/10 text-brand-orange hover:bg-brand-orange hover:text-white border border-brand-orange/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 transition-all">
+                <a href="${p.link}" target="_blank" class="bg-brand-orange/10 text-brand-orange hover:bg-brand-orange hover:text-white border border-brand-orange/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all">
                   <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                   <span>Portal</span>
                 </a>
               ` : ''}
-              <select onchange="updateStatus('${p.id}', this.value)" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2 py-1.5 text-brand-white focus:border-brand-orange">
+              <select onchange="updateStatus('${p.id}', this.value)" class="bg-slate-900 border border-slate-700 text-xs rounded-xl px-2.5 py-1.5 text-brand-white focus:border-brand-orange transition-all">
                 <option value="En redacción" ${p.status==='En redacción'?'selected':''}>En redacción</option>
                 <option value="En revisión interna" ${p.status==='En revisión interna'?'selected':''}>En revisión interna</option>
                 <option value="Enviado / Under Review" ${p.status==='Enviado / Under Review'?'selected':''}>Enviado / Under Review</option>
@@ -258,35 +356,10 @@
       render();
     }
 
-    function updateStatus(id, newStatus) {
-      papers = papers.map(p => p.id === id ? { ...p, status: newStatus } : p);
-      localStorage.setItem('academic_papers_v4', JSON.stringify(papers));
-      render();
-    }
-
     function openModal() { document.getElementById('paper-modal').classList.remove('hidden'); }
     function closeModal() { document.getElementById('paper-modal').classList.add('hidden'); }
 
-    function savePaper(e) {
-      e.preventDefault();
-      const p = {
-        id: Date.now().toString(),
-        title: document.getElementById('input-title').value,
-        author: document.getElementById('input-author').value,
-        coauthors: document.getElementById('input-coauthors').value,
-        db: document.getElementById('input-db').value,
-        journal: document.getElementById('input-journal').value,
-        status: document.getElementById('input-status').value,
-        corr: document.getElementById('input-corr').value,
-        link: document.getElementById('input-doc-link').value
-      };
-      papers.unshift(p);
-      localStorage.setItem('academic_papers_v4', JSON.stringify(papers));
-      closeModal();
-      render();
-    }
-
-    render();
+    initSupabase();
   </script>
 </body>
 </html>
